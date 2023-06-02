@@ -84,8 +84,12 @@ if __name__ == '__main__':
         short_pdr = short_pdr.drop_duplicates(subset = ["Client Id"])
 
         #Add housing move in date code ******************
+
         housed_pdr = short_pdr[pd.notna(short_pdr['HMID'])]
+        # Don't want housing move in dates that occur later
         housed_pdr = housed_pdr[housed_pdr["HMID"] <= month]
+        unhoused = short_pdr[pd.isna(short_pdr["HMID"])]
+
         #End housing move in date code *************************
 
         #Get most recent row of bfz_frame!
