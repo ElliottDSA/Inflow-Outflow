@@ -88,7 +88,7 @@ if __name__ == '__main__':
         housed_pdr = short_pdr[pd.notna(short_pdr['HMID'])]
         # Don't want housing move in dates that occur later
         housed_pdr = housed_pdr[housed_pdr["HMID"] <= month]
-        unhoused = short_pdr[pd.isna(short_pdr["HMID"])]
+        unhoused_pdr = short_pdr[pd.isna(short_pdr["HMID"])]
 
         #End housing move in date code *************************
 
@@ -98,6 +98,20 @@ if __name__ == '__main__':
         #Give me list of 'active'/inflow clients
         active_bfz = bfz_list[(bfz_list["bfz_status"] == "first_identified") | (bfz_list["bfz_status"] == "returned")]
         active_bfz = active_bfz[active_bfz["bfz_date"] <= month]
+
+        #People who were previously active, but whose most recent entry shows they were housed
+        #need to make sure they don't get 'inactivated'
+        housed_bfz = active_bfz[active_bfz["Client Id"].isin(housed_pdr["Client Id"])]
+
+        #drop the housed people from the active_bfz list
+        active_bfz = active_bfz.drop(housed_bfz.index)
+
+        #do the same thing for the recently unhoused
+        unhoused_bfz = inactive_bfz[inactive_bfz["Client Id"].isin(unhoused_pdr["Client Id"])]
+        inactive_bfz = inactive_bfz.drop(unhoused_bfz.index)
+        #if they were unhoused, but are now housed- then they are inflow
+
+
         inactive_bfz = bfz_list[bfz_list["bfz_status"] == "inactive"]
         inactive_bfz = inactive_bfz[inactive_bfz["bfz_date"] <= month]
         inactive = active_bfz[~active_bfz["Client Id"].isin(short_pdr["Client Id"])]
