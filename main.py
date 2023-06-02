@@ -29,7 +29,7 @@ if __name__ == '__main__':
     my_contacts['Information Date'] = pd.to_datetime(my_contacts['Information Date'], format="mixed")
     my_contacts['Entry Date'] = pd.to_datetime(my_contacts['Entry Date'], format="mixed")
     my_contacts['Exit Date'] = pd.to_datetime(my_contacts['Exit Date'], format="mixed")
-    my_contacts["HMID"] =pd.to_Datetime(my_contacts["HMID"], format="mixed")
+    my_contacts["HMID"] =pd.to_datetime(my_contacts["HMID"], format="mixed")
 
     #For some reason, get the most recent date for programs - ignoring information date
     most_recent_entry_exit = my_contacts.copy()
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         short_pdr = short_pdr.drop_duplicates(subset = ["Client Id"])
 
         #Add housing move in date code ******************
-        housed_pdr = short_pdr[short_pdr['HMID']]
+        housed_pdr = short_pdr[pd.notna(short_pdr['HMID'])]
         #End housing move in date code *************************
 
         #Get most recent row of bfz_frame!
