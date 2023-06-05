@@ -76,7 +76,7 @@ if __name__ == '__main__':
         cols = short_pdr[['Information Date', 'Entry Date', 'Exit Date']]
         short_pdr['latest_date'] = cols.max(1)
 
-        #redundant?
+
         short_pdr = short_pdr[short_pdr['latest_date'] <= month]
         #set date to null if it is larger than month
         short_pdr = short_pdr[short_pdr['latest_date'] >= (month - pd.DateOffset(months=3))]
@@ -89,31 +89,47 @@ if __name__ == '__main__':
         # Don't want housing move in dates that occur later
         housed_pdr = housed_pdr[housed_pdr["HMID"] <= month]
         unhoused_pdr = short_pdr[pd.isna(short_pdr["HMID"])]
+        #should only have bfz status updated if they were previously housed
 
         #End housing move in date code *************************
 
         #Get most recent row of bfz_frame!
+        #The bfz frame is the list of 'BFZ statuses, like active/inactive, etc.
         bfz_list = bfz_frame.sort_values(by=["bfz_date"], ascending = False)
         bfz_list = bfz_list.drop_duplicates(subset = ["Client Id"])
         #Give me list of 'active'/inflow clients
-        active_bfz = bfz_list[(bfz_list["bfz_status"] == "first_identified") | (bfz_list["bfz_status"] == "returned")]
+        active_bfz = bfz_list[(bfz_list["bfz_status"] == "first_identified") | (bfz_list["bfz_status"] == "returned")
+                              |(bfz_list["bfz_status"] == "returned_to_homelessness")]
+        #For the most part, this loop isn't 'looking ahead', but the first identified are labelled all at once, outside
+        #the loop, so I have to make sure I'm not pulling those people in
         active_bfz = active_bfz[active_bfz["bfz_date"] <= month]
 
         #People who were previously active, but whose most recent entry shows they were housed
         #need to make sure they don't get 'inactivated'
+        #need to update bfz status
         housed_bfz = active_bfz[active_bfz["Client Id"].isin(housed_pdr["Client Id"])]
+        #UPDATE BFZ STATUS:
+        #Can't be right
+        housed_bfz.loc[:,"bfz_status"] = "housed"
 
         #drop the housed people from the active_bfz list
         active_bfz = active_bfz.drop(housed_bfz.index)
 
         #do the same thing for the recently unhoused
-        unhoused_bfz = inactive_bfz[inactive_bfz["Client Id"].isin(unhoused_pdr["Client Id"])]
-        inactive_bfz = inactive_bfz.drop(unhoused_bfz.index)
+        #I want to pull people from the 'housed' list, not the 'inactive' list. But I also want to make sure that
+        #people on the 'housed' list can't become inactive
+        #
+        housed_bfz_list = bfz_list[bfz_list["bfz_status"] == "housed"]
+        unhoused_bfz = housed_bfz_list[housed_bfz_list["Client Id"].isin(unhoused_pdr["Client Id"])]
+        unhoused_bfz.loc[:, "bfz_status"] = "returned_to_homelessness"
+        #inactive_bfz = inactive_bfz.drop(unhoused_bfz.index)
         #if they were unhoused, but are now housed- then they are inflow
 
 
-        inactive_bfz = bfz_list[bfz_list["bfz_status"] == "inactive"]
+
+        inactive_bfz = bfz_list[(bfz_list["bfz_status"] == "inactive")]
         inactive_bfz = inactive_bfz[inactive_bfz["bfz_date"] <= month]
+
         inactive = active_bfz[~active_bfz["Client Id"].isin(short_pdr["Client Id"])]
         active = inactive_bfz[inactive_bfz["Client Id"].isin(short_pdr["Client Id"])]
         #print(np.shape(inactive))
@@ -121,7 +137,9 @@ if __name__ == '__main__':
         active.loc[:, "bfz_status"] = "returned"
         inactive.loc[:, "bfz_date"] = month
         active.loc[:, "bfz_date"] = month
-        bfz_frame = pd.concat([bfz_frame, inactive, active])
+        housed_bfz.loc[:, "bfz_date"] = month
+        unhoused_bfz.loc[:,"bfz_date"] = month
+        bfz_frame = pd.concat([bfz_frame, inactive, active, unhoused_bfz, housed_bfz])
         #print(bfz_frame)
         #print(first_identified["Client First Name"])
         #active_frame()
@@ -193,4 +211,4 @@ if __name__ == '__main__':
 
     jimmy_list = need_in.join(most_recent_entry_exit.set_index("Client Id"),how="left", lsuffix="lefty", rsuffix ="righty")
 
-    #jimmy_list.to_csv("C:/Users/elliott.lapinel/Downloads/jimmy_list.csv")
+    jimmy_list.to_csv("C:/Users/elliott.lapinel/Downloads/jimmy_list_thursday.csv")
